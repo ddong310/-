@@ -1,0 +1,1091 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head><base target="_top"></head>
+<body>
+<title>조기축구 경기 찾기</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Black+Han+Sans&family=IBM+Plex+Sans+KR:wght@400;500;600&display=swap">
+<style>
+/* Layout: floodlit night match. A stadium hero with a pitch in perspective, then TV-broadcast fixture graphics. Referee cards mark status: yellow = 매칭중, red = 매칭완료. Single dark world on purpose. */
+:root {
+  color-scheme: dark;
+  --night: #050920;
+  --panel: #101640;
+  --panel-2: #182058;
+  --line: #2c3578;
+  --fg: #f4f6ff;
+  --muted: #aab2dc;
+  --yellow: #ffe600;
+  --on-yellow: #0b0f2c;
+  --red: #ff2d46;
+  --grass: #0fae55;
+  --grass-deep: #07693a;
+  --danger-bg: #4a1022;
+  --danger-fg: #ffb3bd;
+  --display: "Black Han Sans", "Noto Sans CJK KR", "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --digits: "Anton", Impact, "Arial Narrow", "Noto Sans CJK KR", sans-serif;
+  --body: "IBM Plex Sans KR", "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { background: var(--night); }
+body {
+  margin: 0;
+  background: var(--night);
+  color: var(--fg);
+  font: 400 1rem/1.55 var(--body);
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+  font-synthesis-weight: none;
+}
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--night); }
+button, input, select { font: inherit; color: inherit; }
+button, summary { cursor: pointer; }
+:focus-visible { outline: 3px solid var(--yellow); outline-offset: 2px; }
+.wrap {
+  max-width: 76rem;
+  margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+
+/* Stadium hero */
+.stadium { position: relative; overflow: hidden; isolation: isolate; background: linear-gradient(#02041a, #0a1140 55%, #07693a); }
+.plane {
+  position: absolute;
+  z-index: -2;
+  left: -45%;
+  right: -45%;
+  bottom: -4%;
+  height: 92%;
+  transform: perspective(34rem) rotateX(58deg);
+  transform-origin: 50% 100%;
+  background: repeating-linear-gradient(90deg, var(--grass) 0 7%, var(--grass-deep) 7% 14%);
+}
+.plane svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.plane svg * { fill: none; stroke: rgba(255, 255, 255, .85); stroke-width: 4; vector-effect: non-scaling-stroke; }
+.beams { position: absolute; inset: 0; z-index: -1; pointer-events: none; mix-blend-mode: screen; }
+.beam {
+  position: absolute;
+  top: -8%;
+  width: 62%;
+  height: 130%;
+  background: linear-gradient(rgba(214, 228, 255, .34), rgba(214, 228, 255, 0) 72%);
+  filter: blur(22px);
+}
+.beam.left { left: -8%; clip-path: polygon(0 0, 16% 0, 100% 100%, 22% 100%); }
+.beam.right { right: -8%; clip-path: polygon(84% 0, 100% 0, 78% 100%, 0 100%); }
+.lamps {
+  position: absolute;
+  top: .6rem;
+  width: 5.5rem;
+  height: 1.5rem;
+  background: radial-gradient(circle, #ffffff 0 .22rem, rgba(255, 255, 255, 0) .34rem) 0 0 / 1.1rem .75rem;
+  filter: drop-shadow(0 0 .6rem #dfe9ff) drop-shadow(0 0 1.4rem #9db8ff);
+}
+.lamps.left { left: .6rem; }
+.lamps.right { right: .6rem; }
+.hero { position: relative; display: grid; gap: .75rem; padding-block: 2.75rem 1.25rem; }
+.hero > * { min-width: 0; }
+.kicker { margin: 0; color: var(--yellow); font-weight: 700; letter-spacing: .02em; text-shadow: 0 1px 8px #000; }
+h1 {
+  margin: 0;
+  font: 900 clamp(4.25rem, 21vw, 9rem)/1.05 var(--display);
+  letter-spacing: -.02em;
+  white-space: nowrap;
+  transform: skewX(-9deg);
+  transform-origin: 0 100%;
+  text-shadow: 0 .05em 0 #0b0f2c, 0 .4rem 2rem rgba(0, 0, 0, .75), 0 0 3rem rgba(170, 195, 255, .5);
+}
+.sub { margin: 0; max-width: 32rem; font-size: 1.0625rem; font-weight: 600; text-shadow: 0 1px 8px #000; }
+.board-panel {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  width: min(100%, 34rem);
+  margin-top: .35rem;
+  background: rgba(5, 9, 32, .86);
+  border-top: 3px solid var(--yellow);
+}
+.cell { display: flex; align-items: baseline; justify-content: center; flex-wrap: wrap; gap: 0 .4rem; padding: .45rem .3rem; }
+.cell + .cell { border-left: 1px solid var(--line); }
+.cell b { font: 400 2.25rem/1.05 var(--digits); font-variant-numeric: tabular-nums; }
+.cell span { color: var(--muted); font-size: .75rem; font-weight: 600; }
+.cell.c-open b { color: var(--yellow); }
+.cell.c-done b { color: var(--red); }
+@keyframes lightsOn {
+  0% { opacity: .05; } 18% { opacity: .9; } 26% { opacity: .15; } 44% { opacity: 1; } 52% { opacity: .35; } 100% { opacity: 1; }
+}
+@keyframes slam {
+  0% { opacity: 0; transform: skewX(-9deg) translateX(-1.5rem) scale(1.08); }
+  100% { opacity: 1; transform: skewX(-9deg); }
+}
+.beams, .lamps { animation: lightsOn .9s linear both; }
+h1 { animation: slam .4s .45s cubic-bezier(.2, .9, .25, 1) both; }
+
+/* Sticky nav */
+.nav { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--night); border-bottom: 1px solid var(--line); }
+.tabs { display: flex; gap: .35rem; padding-block: .5rem; }
+.tab {
+  flex: 1 1 0;
+  max-width: 11rem;
+  min-height: 3rem;
+  border: 0;
+  background: var(--panel);
+  color: var(--fg);
+  font: 900 1.125rem/1 var(--display);
+  clip-path: polygon(.7rem 0, 100% 0, calc(100% - .7rem) 100%, 0 100%);
+}
+.tab[aria-selected="true"] { background: var(--yellow); color: var(--on-yellow); }
+.tab:focus-visible { outline-offset: -5px; outline-color: var(--red); }
+
+/* Page */
+main.wrap { display: grid; gap: 1rem; padding-block: 1rem 4rem; }
+main.wrap > * { min-width: 0; }
+.notice { margin: 0; padding: .55rem .8rem; border-left: 3px solid var(--yellow); background: var(--panel); color: var(--muted); font-size: .875rem; }
+.view { display: grid; gap: 1rem; }
+.view > * { min-width: 0; }
+.board { display: grid; gap: .85rem; min-width: 0; }
+.board > * { min-width: 0; }
+#view-add { max-width: 44rem; width: 100%; margin: 0 auto; }
+
+/* Filters */
+.filters { display: grid; gap: .6rem; }
+.filters > * { min-width: 0; }
+.date-strip { display: flex; gap: .35rem; overflow-x: auto; padding-bottom: .35rem; scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
+.day-btn {
+  flex: 0 0 3.5rem;
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  min-height: 4.5rem;
+  padding: .3rem .1rem;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--fg);
+}
+.day-btn.all { flex-basis: 4rem; font: 900 1.0625rem/1 var(--display); }
+.day-week { color: var(--muted); font-size: .75rem; font-weight: 600; }
+.day-num { font: 400 1.625rem/1.15 var(--digits); font-variant-numeric: tabular-nums; }
+.day-count { color: var(--yellow); font-size: .75rem; font-weight: 700; }
+.day-btn.none .day-num, .day-btn.none .day-week { opacity: .42; }
+.day-btn.weekend .day-week { color: var(--yellow); }
+.day-btn[aria-pressed="true"], .day-btn[aria-pressed="true"] .day-week, .day-btn[aria-pressed="true"] .day-count { background: var(--yellow); border-color: var(--yellow); color: var(--on-yellow); }
+.filter-row { display: grid; gap: .5rem; }
+.filter-row > * { min-width: 0; }
+.filter-row .field label, .filter-row .legend { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.more-filters .field label { position: static; width: auto; height: auto; clip-path: none; }
+.filter-row .seg { margin-top: 0; }
+.field { display: grid; gap: .3rem; min-width: 0; }
+.field label, .legend { font-size: .875rem; font-weight: 600; color: var(--muted); }
+.opt { font-weight: 400; }
+.field input, .field select {
+  width: 100%;
+  min-width: 0;
+  min-height: 3.25rem;
+  padding: .4rem .75rem;
+  border: 1px solid var(--line);
+  border-radius: 0;
+  background: var(--panel);
+  color: var(--fg);
+}
+.field input:focus, .field select:focus { border-color: var(--yellow); }
+.hint { margin: 0; color: var(--muted); font-size: .8125rem; }
+fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
+legend { padding: 0; }
+.times { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
+.three { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; }
+.seg { display: flex; gap: .3rem; margin-top: .3rem; }
+.seg input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.seg label {
+  flex: 1 1 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 3.25rem;
+  padding: .2rem .4rem;
+  background: var(--panel);
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.seg input:checked + label { background: var(--yellow); color: var(--on-yellow); }
+.seg input:focus-visible + label { outline: 3px solid var(--yellow); outline-offset: 2px; }
+.more-filters summary { min-height: 2.75rem; padding: .55rem 0; color: var(--yellow); font-weight: 700; }
+.more-filters .times { padding-top: .25rem; }
+
+.result-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem; }
+.count { margin: 0; font: 900 clamp(1.5rem, 6vw, 2.25rem)/1.15 var(--display); font-variant-numeric: tabular-nums; }
+.head-actions { display: flex; flex-wrap: wrap; gap: .35rem; }
+.ghost { min-height: 2.75rem; padding: .3rem .85rem; border: 1px solid var(--line); background: var(--panel); color: var(--fg); font-size: .875rem; font-weight: 600; }
+.ghost:hover { border-color: var(--yellow); }
+.admin-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem; font-weight: 700; }
+.admin-bar span { min-width: 0; }
+.flash { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem; padding: .55rem .8rem; background: var(--yellow); color: var(--on-yellow); font-weight: 700; }
+.flash span { min-width: 0; }
+.flash .ghost { background: var(--on-yellow); color: var(--fg); border-color: var(--on-yellow); }
+
+/* Fixture graphics */
+.games { display: grid; gap: .7rem; margin: 0; padding: 0; list-style: none; }
+.game {
+  display: grid;
+  min-width: 0;
+  background: linear-gradient(100deg, var(--panel-2), var(--panel) 60%);
+  border-bottom: 3px solid var(--line);
+  transition: transform .14s ease, border-color .14s ease;
+}
+.game:hover { transform: translateY(-3px); border-color: var(--yellow); }
+.game.new { border-color: var(--yellow); box-shadow: 0 0 1.5rem rgba(255, 230, 0, .3); }
+.game-main { display: grid; grid-template-columns: 5.25rem minmax(0, 1fr) auto; width: 100%; padding: 0; border: 0; background: transparent; color: var(--fg); text-align: left; }
+.stub {
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  padding: .75rem 1rem .75rem .25rem;
+  background: var(--grass-deep);
+  clip-path: polygon(0 0, 100% 0, calc(100% - .85rem) 100%, 0 100%);
+}
+.is-first .stub { background: var(--yellow); color: var(--on-yellow); }
+.is-done .stub, .is-past .stub { background: #39406c; color: var(--fg); }
+.stub-month { font-size: .75rem; font-weight: 700; }
+.stub-day { font: 400 2.75rem/1.05 var(--digits); font-variant-numeric: tabular-nums; }
+.stub-week { font-size: .8125rem; font-weight: 700; }
+.ticket { display: grid; align-content: center; gap: .3rem; min-width: 0; padding: .7rem .5rem .6rem .35rem; }
+.first-tag { justify-self: start; padding: 0 .4rem; background: var(--yellow); color: var(--on-yellow); font-size: .75rem; font-weight: 800; }
+.time { display: inline-block; font: 400 clamp(2rem, 9.5vw, 2.75rem)/1 var(--digits); font-variant-numeric: tabular-nums; transform: skewX(-7deg); transform-origin: 0 100%; }
+.time small { color: var(--muted); font-size: .55em; }
+.where { display: flex; flex-wrap: wrap; align-items: baseline; gap: .1rem .5rem; }
+.region { color: var(--yellow); font: 900 1.0625rem/1.3 var(--display); }
+.place { font-weight: 600; }
+.facts { display: flex; flex-wrap: wrap; align-items: center; gap: .1rem .6rem; color: var(--muted); font-size: .875rem; }
+.pill { display: inline-flex; align-items: center; gap: .35rem; font-size: .8125rem; font-weight: 800; white-space: nowrap; }
+.pill::before { content: ""; width: .6rem; height: .85rem; border-radius: 1px; background: currentColor; transform: rotate(10deg); }
+.pill.open { color: var(--yellow); }
+.pill.done { color: #ff8795; }
+.pill.done::before { background: var(--red); }
+.past-tag { color: var(--muted); font-size: .8125rem; font-weight: 700; }
+.more { color: var(--fg); font-size: .875rem; font-weight: 700; text-decoration: underline; text-underline-offset: .2em; }
+.rate { display: grid; align-content: center; justify-items: center; min-width: 3.4rem; padding: .5rem .6rem; background: rgba(5, 9, 32, .55); }
+.rate b { font: 400 2.75rem/1 var(--digits); }
+.rate span { color: var(--muted); font-size: .6875rem; font-weight: 700; }
+.level-A b { color: var(--yellow); }
+
+.detail { display: grid; gap: .8rem; padding: 1rem; background: var(--night); border-top: 3px solid var(--yellow); }
+.detail h3 { margin: 0; font: 900 1.625rem/1.15 var(--display); transform: skewX(-7deg); transform-origin: 0 100%; }
+.detail ol { display: grid; gap: .75rem 1.5rem; margin: 0; padding-left: 1.7rem; }
+.detail li::marker { color: var(--yellow); font-weight: 800; font-variant-numeric: tabular-nums; }
+.detail-label, .detail-value, .detail-note { display: block; }
+.detail-label { color: var(--muted); font-size: .8125rem; }
+.detail-value { font-weight: 700; }
+.detail-note { color: var(--muted); font-size: .8125rem; }
+
+.status-btn { min-height: 3.25rem; border: 0; border-top: 1px solid var(--line); background: transparent; color: var(--yellow); font-weight: 800; }
+.status-btn:hover { background: var(--yellow); color: var(--on-yellow); }
+.status-btn:disabled { opacity: .6; cursor: progress; }
+
+.empty { padding: 2.5rem 1rem; background: var(--panel); color: var(--muted); text-align: center; }
+.empty strong { display: block; color: var(--fg); font: 900 1.375rem/1.4 var(--display); }
+
+form { display: grid; gap: 1rem; }
+#gate, #form { padding: 1.1rem; background: var(--panel-2); }
+#gate .field input, #form .field input, #form .field select { background: var(--night); }
+.alert { margin: 0; padding: .6rem .8rem; background: var(--danger-bg); color: var(--danger-fg); font-weight: 600; }
+.primary {
+  min-height: 3.75rem;
+  border: 0;
+  background: var(--yellow);
+  color: var(--on-yellow);
+  font: 900 1.375rem/1 var(--display);
+  clip-path: polygon(.8rem 0, 100% 0, calc(100% - .8rem) 100%, 0 100%);
+}
+.primary:focus-visible { outline-offset: -6px; outline-color: var(--red); }
+.primary:disabled { opacity: .6; cursor: progress; }
+
+@media (max-width: 30rem) { .three { grid-template-columns: minmax(0, 1fr); } }
+@media (min-width: 40rem) {
+  .filter-row { grid-template-columns: minmax(0, 16rem) minmax(0, 24rem); align-items: end; }
+  .more-filters { grid-column: 1 / -1; }
+  .detail ol { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 62rem) {
+  .games { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+  .game.is-open { grid-column: 1 / -1; }
+  .more-filters .times { grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: 44rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .beams, .lamps, h1 { animation: none; }
+  .game { transition: none; }
+  .game:hover { transform: none; }
+}
+</style>
+
+<header class="stadium">
+  <div class="plane" aria-hidden="true">
+    <svg viewBox="0 0 1000 500" preserveAspectRatio="none">
+      <rect x="40" y="20" width="920" height="470"/>
+      <path d="M500 20V490"/>
+      <circle cx="500" cy="255" r="62"/>
+      <path d="M40 130H180V380H40"/>
+      <path d="M960 130H820V380H960"/>
+    </svg>
+  </div>
+  <div class="beams" aria-hidden="true"><div class="beam left"></div><div class="beam right"></div></div>
+  <div class="lamps left" aria-hidden="true"></div>
+  <div class="lamps right" aria-hidden="true"></div>
+  <div class="wrap hero">
+    <p class="kicker">조기축구 경기 찾기</p>
+    <h1>한판 붙자</h1>
+    <p class="sub">이번 주 상대 팀, 날짜만 누르면 바로 나옵니다.</p>
+    <div class="board-panel" aria-label="경기 현황">
+      <div class="cell c-open"><b id="sb-open">--</b><span>매칭중</span></div>
+      <div class="cell c-done"><b id="sb-done">--</b><span>매칭완료</span></div>
+      <div class="cell"><b id="sb-regions">--</b><span>매칭중 지역</span></div>
+    </div>
+  </div>
+</header>
+<nav class="nav">
+  <div class="wrap">
+    <div class="tabs" role="tablist" aria-label="화면">
+      <button class="tab" id="tab-list" role="tab" type="button" aria-selected="true" aria-controls="view-list">경기 찾기</button>
+      <button class="tab" id="tab-add" role="tab" type="button" aria-selected="false" aria-controls="view-add">경기 올리기</button>
+    </div>
+  </div>
+</nav>
+
+<main class="wrap">
+  <p class="notice" id="demo-notice" hidden>미리보기입니다. 보이는 경기는 모두 가상의 예시이고, 입력한 내용은 시트에 저장되지 않으며 새로고침하면 사라집니다. 미리보기용 관리자 코드는 1234(관리자 A)와 5678(관리자 B)입니다.</p>
+
+  <section class="view" id="view-list" role="tabpanel" aria-labelledby="tab-list">
+    <div class="filters">
+      <div class="date-strip" id="date-strip" role="group" aria-label="날짜 고르기"></div>
+      <div class="filter-row">
+        <div class="field">
+          <label for="f-region">지역</label>
+          <select id="f-region">
+            <option value="">전체 지역</option>
+          </select>
+        </div>
+        <fieldset>
+          <legend class="legend">경기상태</legend>
+          <div class="seg">
+            <input type="radio" name="f-status" id="fs-open" value="매칭중" checked><label for="fs-open">매칭중</label>
+            <input type="radio" name="f-status" id="fs-done" value="매칭완료"><label for="fs-done">매칭완료</label>
+            <input type="radio" name="f-status" id="fs-all" value=""><label for="fs-all">전체</label>
+          </div>
+        </fieldset>
+        <details class="more-filters">
+          <summary>날짜·시간 직접 고르기</summary>
+          <div class="times">
+            <div class="field">
+              <label for="f-date">날짜</label>
+              <input id="f-date" type="date">
+            </div>
+            <div class="field">
+              <label for="f-from">이 시각부터 시작</label>
+              <input id="f-from" type="time">
+            </div>
+            <div class="field">
+              <label for="f-to">이 시각까지 종료</label>
+              <input id="f-to" type="time">
+            </div>
+          </div>
+        </details>
+      </div>
+    </div>
+
+    <div class="board">
+    <div class="result-head">
+      <p class="count" id="count" aria-live="polite">경기를 불러오는 중입니다</p>
+      <div class="head-actions">
+        <button class="ghost" id="admin-open" type="button">관리자 코드 입력</button>
+        <button class="ghost" id="clear" type="button">조건 지우기</button>
+      </div>
+    </div>
+    <div class="flash" id="flash" role="status" hidden>
+      <span id="flash-text"></span>
+      <button class="ghost" id="undo" type="button">되돌리기</button>
+    </div>
+    <div class="board" id="results"></div>
+    </div>
+  </section>
+
+  <section class="view" id="view-add" role="tabpanel" aria-labelledby="tab-add" hidden>
+    <form id="gate" novalidate>
+      <div class="field">
+        <label for="admin-code">관리자 코드</label>
+        <input id="admin-code" type="password" autocomplete="off">
+        <p class="hint">관리자마다 자기 코드를 씁니다. 경기상태는 내가 올린 경기만 바꿀 수 있습니다.</p>
+      </div>
+      <p class="alert" id="gate-error" role="alert" hidden></p>
+      <button class="primary" id="gate-submit" type="submit">확인</button>
+    </form>
+    <div class="admin-bar" id="admin-bar" hidden>
+      <span id="admin-who"></span>
+      <button class="ghost" id="admin-end" type="button">관리자 모드 끝내기</button>
+    </div>
+    <form id="form" novalidate hidden>
+      <div class="field">
+        <label for="date">날짜</label>
+        <input id="date" name="date" type="date" required>
+      </div>
+      <div class="times">
+        <div class="field">
+          <label for="start">시작시각</label>
+          <input id="start" name="start" type="time" required>
+        </div>
+        <div class="field">
+          <label for="end">끝시각</label>
+          <input id="end" name="end" type="time" required>
+        </div>
+      </div>
+      <div class="field">
+        <label for="sport">축구 or 풋살</label>
+        <select id="sport" name="sport">
+          <option>축구</option>
+          <option>풋살</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="region">지역 <span class="opt">(선택)</span></label>
+        <select id="region" name="region">
+            <option value="">고르지 않음</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="place">장소 <span class="opt">(선택)</span></label>
+        <input id="place" name="place" type="text" maxlength="50" autocomplete="off" list="place-list">
+        <datalist id="place-list"></datalist>
+        <p class="hint">구장 이름만 적어 주세요. 한 구장은 한 지역에만 저장됩니다. 실명과 연락처는 저장하지 않습니다.</p>
+      </div>
+      <div class="three">
+        <div class="field">
+          <label for="level">팀 수준 <span class="opt">(선택)</span></label>
+          <select id="level" name="level">
+            <option value="">고르지 않음</option>
+            <option value="A">A (가장 잘함)</option>
+            <option value="B">B</option>
+            <option value="C">C</option>
+            <option value="D">D</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="age">팀 연령 <span class="opt">(선택)</span></label>
+          <select id="age" name="age">
+            <option value="">고르지 않음</option>
+            <option>20대</option>
+            <option>30대</option>
+            <option>40대</option>
+            <option>50대 이상</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="players">선출 인원 수 <span class="opt">(선택)</span></label>
+          <select id="players" name="players"><option value="">고르지 않음</option></select>
+        </div>
+      </div>
+      <div class="times">
+        <div class="field">
+          <label for="fee">원 구장비 <span class="opt">(선택)</span></label>
+          <input id="fee" name="fee" type="text" inputmode="numeric" autocomplete="off" placeholder="79,000">
+        </div>
+        <div class="field">
+          <label for="share">상대팀 부담비용 <span class="opt">(선택)</span></label>
+          <input id="share" name="share" type="text" maxlength="30" autocomplete="off" placeholder="무료초청">
+        </div>
+      </div>
+      <div class="field">
+        <label for="format">경기방식 <span class="opt">(선택)</span></label>
+        <input id="format" name="format" type="text" maxlength="30" autocomplete="off" placeholder="11대11 경기">
+      </div>
+      <div class="field">
+        <label for="comment">코멘트 <span class="opt">(선택)</span></label>
+        <input id="comment" name="comment" type="text" maxlength="200" autocomplete="off">
+        <p class="hint">전화번호는 적지 말아 주세요. 팀 이름은 임의의 이름으로 표시됩니다.</p>
+      </div>
+      <p class="alert" id="form-error" role="alert" hidden></p>
+      <p class="hint">저장하면 매칭중으로 올라갑니다. 매칭이 끝나면 목록의 내 경기에서 매칭완료로 바꿀 수 있습니다.</p>
+      <button class="primary" id="save" type="submit">경기 올리기</button>
+    </form>
+  </section>
+</main>
+
+<script>
+(function () {
+  var isSheetApp = typeof google !== 'undefined' && google.script && google.script.run;
+  var games = [];
+  var loaded = false;
+  var newKey = '';
+  var loadError = '';
+  var undoChange = null;
+  var adminCode = '';
+  var openRow = null;
+  var TEAM_NAMES = ['라온FC', '새벽FC', '한빛FC', '푸른FC', '다온FC', '바람FC', '은하FC', '해오름FC', '미르FC', '초록FC'];
+  var DEMO_ADMINS = { '1234': 'A', '5678': 'B' };
+  var WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토'];
+  var REGION_GROUPS = [
+    ['수도권', ['서울-중부', '서울-북서', '서울-북동', '서울-남서', '서울-남동', '경기-북부', '경기-남부', '인천']],
+    ['강원', ['강원']],
+    ['충청', ['대전', '세종', '충북', '충남']],
+    ['호남', ['광주', '전북', '전남']],
+    ['영남', ['대구', '경북', '부산', '울산', '경남']],
+    ['제주', ['제주']]
+  ];
+  var $ = function (id) { return document.getElementById(id); };
+
+  var demoGames = [
+    ['2026-11-01', '07:00', '09:00', '경기-남부', '예시구장 다', 'C', '40대', '1', '매칭중', 'B', '축구', '11대11 경기', '79000', '무료초청', '매너 경기 부탁드립니다.'],
+    ['2026-11-08', '07:00', '09:00', '서울-남동', '예시구장 가', 'B', '30대', '2', '매칭중', 'A', '축구', '11대11, 쿼터제', '90000', '구장비 반반', '초보팀도 환영합니다.'],
+    ['2026-11-08', '09:00', '11:00', '서울-북서', '예시구장 나', 'C', '40대', '0', '매칭완료', 'A', '풋살', '6대6 경기', '60000', '구장비 반반', '조끼는 저희가 준비합니다.'],
+    ['2026-11-14', '06:30', '08:30', '서울-남동', '예시구장 가', 'A', '20대', '3', '매칭중', 'A', '축구', '11대11 경기', '120000', '구장비 반반', '심판은 자체 진행입니다.'],
+    ['2026-11-15', '08:00', '10:00', '경기-북부', '예시구장 라', 'D', '50대 이상', '0', '매칭중', 'B', '축구', '9대9 경기', '50000', '무료초청', '비슷한 실력의 팀을 찾습니다.'],
+    ['2026-11-15', '10:00', '12:00', '서울-남서', '예시구장 마', 'B', '30대', '1', '매칭완료', 'B', '풋살', '5대5 경기', '45000', '구장비 반반', '주차 가능합니다.'],
+    ['2026-11-22', '07:00', '09:00', '서울-북동', '예시구장 바', 'C', '30대', '1', '매칭중', 'A', '축구', '11대11 경기', '100000', '무료초청', '급구합니다.'],
+    ['2026-11-07', '06:00', '08:00', '부산', '예시구장 사', 'A', '20대', '2', '매칭중', 'B', '축구', '11대11 경기', '80000', '구장비 반반', '바닷바람이 있어 겉옷을 챙기세요.'],
+    ['2026-11-07', '07:00', '09:00', '인천', '예시구장 아', 'C', '30대', '0', '매칭중', 'A', '축구', '11대11, 쿼터제', '110000', '구장비 반반', '4쿼터로 진행합니다.'],
+    ['2026-11-08', '06:30', '08:30', '대구', '예시구장 자', 'B', '40대', '1', '매칭중', 'B', '축구', '11대11 경기', '70000', '무료초청', '공은 저희가 준비합니다.'],
+    ['2026-11-08', '18:00', '20:00', '서울-중부', '예시구장 차', 'B', '20대', '1', '매칭완료', 'A', '풋살', '6대6 경기', '66000', '구장비 반반', '실내 구장입니다.'],
+    ['2026-11-14', '08:00', '10:00', '광주', '예시구장 카', 'D', '40대', '0', '매칭중', 'B', '축구', '11대11 경기', '60000', '무료초청', '즐겁게 찰 팀을 찾습니다.'],
+    ['2026-11-14', '20:00', '22:00', '대전', '예시구장 타', 'C', '30대', '0', '매칭중', 'A', '풋살', '5대5 경기', '50000', '구장비 반반', '풋살화 착용 부탁드립니다.'],
+    ['2026-11-15', '07:00', '09:00', '제주', '예시구장 파', 'B', '40대', '1', '매칭중', 'A', '축구', '11대11 경기', '85000', '무료초청', '경기 후 함께 식사해요.'],
+    ['2026-11-21', '07:00', '09:00', '강원', '예시구장 하', 'C', '50대 이상', '0', '매칭중', 'B', '축구', '11대11 경기', '55000', '무료초청', '날이 추우니 따뜻하게 오세요.'],
+    ['2026-11-21', '09:00', '11:00', '울산', '예시구장 거', 'A', '30대', '4', '매칭완료', 'B', '축구', '11대11 경기', '95000', '구장비 반반', '실력 좋은 팀을 찾습니다.'],
+    ['2026-11-22', '06:30', '08:30', '전북', '예시구장 너', 'C', '40대', '0', '매칭중', 'A', '축구', '9대9 경기', '40000', '무료초청', '인원이 적어도 괜찮습니다.'],
+    ['2026-11-28', '08:00', '10:00', '충남', '예시구장 더', 'B', '30대', '2', '매칭중', 'B', '축구', '11대11, 쿼터제', '75000', '구장비 반반', '심판을 함께 구합니다.'],
+    ['2026-11-29', '07:00', '09:00', '경남', '예시구장 러', 'D', '20대', '0', '매칭중', 'A', '축구', '11대11 경기', '65000', '무료초청', '창단 1년 차 팀입니다.']
+  ].map(function (v, index) {
+    return { row: index + 2, date: v[0], start: v[1], end: v[2], region: v[3], place: v[4], level: v[5], age: v[6], players: v[7], status: v[8], owner: v[9], sport: v[10], format: v[11], fee: v[12], share: v[13], comment: v[14] };
+  });
+
+
+  function demoList(alias) {
+    return demoGames.map(function (g) {
+      var copy = Object.assign({}, g, { mine: !!alias && g.owner === alias });
+      delete copy.owner;
+      return copy;
+    });
+  }
+
+  function call(name, arg) {
+    if (!isSheetApp) {
+      if (name === 'verifyAdmin') {
+        return DEMO_ADMINS[arg]
+          ? Promise.resolve({ alias: DEMO_ADMINS[arg], games: demoList(DEMO_ADMINS[arg]) })
+          : Promise.reject(new Error('관리자 코드가 맞지 않습니다.'));
+      }
+      var alias = arg ? DEMO_ADMINS[arg.adminCode] : '';
+      if (name === 'addGame') {
+        var added = Object.assign({}, arg, { row: demoGames.length + 2, owner: alias });
+        delete added.adminCode;
+        demoGames.push(added);
+      }
+      if (name === 'setGameStatus') {
+        var found = demoGames.filter(function (g) { return g.row === arg.row; })[0];
+        if (found.owner !== alias) return Promise.reject(new Error('내가 올린 경기만 바꿀 수 있습니다.'));
+        found.status = arg.status;
+      }
+      return Promise.resolve(demoList(alias));
+    }
+    return new Promise(function (resolve, reject) {
+      var runner = google.script.run.withSuccessHandler(resolve).withFailureHandler(reject);
+      if (arg === undefined) runner[name](); else runner[name](arg);
+    });
+  }
+
+  function todayText() {
+    var now = new Date();
+    return now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate());
+  }
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+
+  function dayLabel(text) {
+    var p = text.split('-').map(Number);
+    var d = new Date(p[0], p[1] - 1, p[2]);
+    return p[1] + '월 ' + p[2] + '일 (' + WEEKDAYS[d.getDay()] + ')';
+  }
+
+  function keyOf(g) {
+    return [g.date, g.start, g.end, g.region, g.place, g.status].join('|');
+  }
+
+  function filterValues() {
+    var checked = document.querySelector('input[name="f-status"]:checked');
+    return { date: $('f-date').value, region: $('f-region').value, from: $('f-from').value, to: $('f-to').value, status: checked ? checked.value : '' };
+  }
+
+  function matches(g, f) {
+    return (!f.date || g.date === f.date) &&
+      (!f.region || g.region === f.region) &&
+      (!f.from || g.start >= f.from) &&
+      (!f.to || g.end <= f.to) &&
+      (!f.status || g.status === f.status);
+  }
+
+  // 다가오는 경기를 빠른 순으로 먼저, 지난 경기는 맨 아래에 최근 순으로 둡니다.
+  function sortGames(list, today) {
+    return list.slice().sort(function (a, b) {
+      var aPast = a.date < today, bPast = b.date < today;
+      if (aPast !== bPast) return aPast ? 1 : -1;
+      var byDay = a.date.localeCompare(b.date) * (aPast ? -1 : 1);
+      return byDay || a.start.localeCompare(b.start);
+    });
+  }
+
+  function el(tag, cls, text) {
+    var node = document.createElement(tag);
+    if (cls) node.className = cls;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  }
+
+  function fact(cls, text) {
+    return el('span', cls, text);
+  }
+
+  function gameCard(g, today, isFirst) {
+    var isPast = g.date < today;
+    var isDoneGame = g.status === '매칭완료';
+    var card = el('li', 'game' + (isDoneGame ? ' is-done' : '') + (isPast ? ' is-past' : '') + (isFirst ? ' is-first' : ''));
+    if (newKey && keyOf(g) === newKey) card.classList.add('new');
+    var isOpen = openRow === g.row;
+    if (isOpen) card.classList.add('is-open');
+
+    var main = el('button', 'game-main');
+    main.type = 'button';
+    main.setAttribute('aria-expanded', String(isOpen));
+
+    var p = g.date.split('-').map(Number);
+    var stub = el('span', 'stub');
+    stub.appendChild(el('span', 'stub-month', p[1] + '월'));
+    stub.appendChild(el('span', 'stub-day', pad(p[2])));
+    stub.appendChild(el('span', 'stub-week', WEEKDAYS[new Date(p[0], p[1] - 1, p[2]).getDay()] + '요일'));
+    main.appendChild(stub);
+
+    var ticket = el('span', 'ticket');
+    if (isFirst) ticket.appendChild(el('span', 'first-tag', '가장 빠른 경기'));
+    var time = el('span', 'time', g.start + ' ');
+    time.appendChild(el('small', '', '~ ' + g.end));
+    ticket.appendChild(time);
+
+    if (g.region || g.place) {
+      var where = el('span', 'where');
+      if (g.region) where.appendChild(el('span', 'region', g.region));
+      if (g.place) where.appendChild(el('span', 'place', g.place));
+      ticket.appendChild(where);
+    }
+
+    var facts = el('span', 'facts');
+    facts.appendChild(el('span', 'pill ' + (isDoneGame ? 'done' : 'open'), g.status));
+    if (g.sport) facts.appendChild(fact('', g.sport));
+    if (g.age) facts.appendChild(fact('', g.age));
+    if (g.players !== '' && g.players !== undefined) facts.appendChild(fact('', '선출 ' + g.players + '명'));
+    ticket.appendChild(facts);
+    if (isPast) ticket.appendChild(el('span', 'past-tag', '지난 날짜'));
+    ticket.appendChild(el('span', 'more', isOpen ? '접기' : '자세히 보기'));
+    main.appendChild(ticket);
+
+    if (g.level) {
+      var rate = el('span', 'rate level-' + g.level);
+      rate.appendChild(el('b', '', g.level));
+      rate.appendChild(el('span', '', '수준'));
+      main.appendChild(rate);
+    }
+
+    main.addEventListener('click', function () {
+      openRow = isOpen ? null : g.row;
+      render();
+    });
+    card.appendChild(main);
+    if (isOpen) card.appendChild(gameDetail(g));
+
+    if (!adminCode || !g.mine) return card;
+
+    var isDone = g.status === '매칭완료';
+    var button = el('button', 'status-btn', isDone ? '매칭중으로 되돌리기' : '매칭완료로 변경');
+    button.type = 'button';
+    button.addEventListener('click', function () {
+      changeStatus(g, isDone ? '매칭중' : '매칭완료');
+    });
+    card.appendChild(button);
+    return card;
+  }
+
+  // 등록하지 않아도 되도록 팀 이름은 경기 정보로 정한 임의의 이름을 씁니다.
+  function teamName(g) {
+    var text = [g.date, g.start, g.end, g.place].join('|');
+    var hash = 0;
+    for (var i = 0; i < text.length; i++) hash = (hash * 31 + text.charCodeAt(i)) % 9973;
+    return TEAM_NAMES[hash % TEAM_NAMES.length];
+  }
+
+  function orBlank(text) {
+    return text === '' || text === undefined || text === null ? '미입력' : String(text);
+  }
+
+  function detailItems(g) {
+    var p = g.date.split('-').map(Number);
+    var weekday = WEEKDAYS[new Date(p[0], p[1] - 1, p[2]).getDay()] + '요일';
+    var digits = String(g.fee === undefined ? '' : g.fee).replace(/\D/g, '');
+    var fee = digits ? Number(digits).toLocaleString('ko-KR') + '원' : '미입력';
+    var players = g.players === '' || g.players === undefined ? '선출 미입력'
+      : String(g.players) === '0' ? '선출없음' : '선출 ' + g.players + '명';
+    return [
+      ['축구 or 풋살', orBlank(g.sport)],
+      ['매치날짜+시간', g.date.slice(5).replace('-', '/') + ' ' + g.start + '~' + g.end],
+      ['매치 요일', weekday],
+      ['팀 이름 / 연령대', teamName(g) + ' ' + orBlank(g.age)],
+      ['팀 실력 / 선출선수(명)', orBlank(g.level) + ' ' + players, '실력등급: A가 가장 잘함, D로 갈수록 약함'],
+      ['지역+구장명', orBlank(g.region) + ' ' + orBlank(g.place)],
+      ['원 구장비 / 상대팀 부담비용', fee + ' ' + orBlank(g.share)],
+      ['경기방식 (몇대몇, 경기룰 등)', orBlank(g.format)],
+      ['연락방식', '댓글 및 채팅으로 연락주세요', '개인번호는 개인정보 노출위험이 있습니다.'],
+      ['코멘트', orBlank(g.comment)]
+    ];
+  }
+
+  function gameDetail(g) {
+    var box = el('div', 'detail');
+    box.appendChild(el('h3', '', '매치모집'));
+    var list = el('ol');
+    detailItems(g).forEach(function (item) {
+      var row = el('li');
+      row.appendChild(el('span', 'detail-label', item[0]));
+      row.appendChild(el('span', 'detail-value', '》 ' + item[1]));
+      if (item[2]) row.appendChild(el('span', 'detail-note', '*' + item[2]));
+      list.appendChild(row);
+    });
+    box.appendChild(list);
+    return box;
+  }
+
+  function showFlash(message, canUndo) {
+    $('flash-text').textContent = message;
+    $('undo').hidden = !canUndo;
+    $('flash').hidden = !message;
+  }
+
+  function setStatusButtonsDisabled(disabled) {
+    document.querySelectorAll('.status-btn').forEach(function (button) { button.disabled = disabled; });
+    $('undo').disabled = disabled;
+  }
+
+  function changeStatus(g, status) {
+    var target = { row: g.row, date: g.date, start: g.start, end: g.end, place: g.place };
+    var previous = g.status;
+    setStatusButtonsDisabled(true);
+    call('setGameStatus', Object.assign({ status: status, adminCode: adminCode }, target)).then(function (rows) {
+      games = rows;
+      newKey = '';
+      undoChange = Object.assign({ status: previous }, target);
+      render();
+      showFlash(g.date.slice(5).replace('-', '/') + ' ' + g.start + ' 경기를 ' + status + '(으)로 바꿨습니다.', true);
+    }).catch(function (error) {
+      render();
+      showFlash((error && error.message) || '경기상태를 바꾸지 못했습니다. 다시 시도해 주세요.', false);
+    }).then(function () {
+      setStatusButtonsDisabled(false);
+    });
+  }
+
+  function empty(title, detail) {
+    var box = el('div', 'empty');
+    box.appendChild(el('strong', '', title));
+    box.appendChild(document.createTextNode(detail));
+    return box;
+  }
+
+  function updateScoreboard() {
+    var open = games.filter(function (g) { return g.status === '매칭중'; });
+    var regions = {};
+    open.forEach(function (g) { if (g.region) regions[g.region] = true; });
+    $('sb-open').textContent = pad(open.length);
+    $('sb-done').textContent = pad(games.length - open.length);
+    $('sb-regions').textContent = pad(Object.keys(regions).length);
+  }
+
+  function renderStrip(f) {
+    var box = $('date-strip');
+    var scroll = box.scrollLeft;
+    box.textContent = '';
+    var others = games.filter(function (g) { return matches(g, Object.assign({}, f, { date: '' })); });
+
+    var all = el('button', 'day-btn all', '전체');
+    all.type = 'button';
+    all.setAttribute('aria-pressed', String(!f.date));
+    all.addEventListener('click', function () { $('f-date').value = ''; render(); });
+    box.appendChild(all);
+
+    var now = new Date();
+    for (var i = 0; i < 28; i++) {
+      (function (offset) {
+        var day = new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset);
+        var text = day.getFullYear() + '-' + pad(day.getMonth() + 1) + '-' + pad(day.getDate());
+        var count = others.filter(function (g) { return g.date === text; }).length;
+        var weekend = day.getDay() === 0 || day.getDay() === 6;
+        var button = el('button', 'day-btn' + (weekend ? ' weekend' : '') + (count ? '' : ' none'));
+        button.type = 'button';
+        button.setAttribute('aria-pressed', String(f.date === text));
+        button.setAttribute('aria-label', (day.getMonth() + 1) + '월 ' + day.getDate() + '일 경기 ' + count + '건');
+        button.appendChild(el('span', 'day-week', offset === 0 ? '오늘' : WEEKDAYS[day.getDay()]));
+        button.appendChild(el('span', 'day-num', pad(day.getDate())));
+        button.appendChild(el('span', 'day-count', count ? count + '경기' : '-'));
+        button.addEventListener('click', function () {
+          $('f-date').value = f.date === text ? '' : text;
+          render();
+        });
+        box.appendChild(button);
+      })(i);
+    }
+    box.scrollLeft = scroll;
+  }
+
+  function render() {
+    if (loaded) updateScoreboard();
+    var box = $('results');
+    box.textContent = '';
+    if (loadError) {
+      $('count').textContent = '경기를 불러오지 못했습니다';
+      box.appendChild(empty('시트를 읽지 못했습니다', loadError));
+      return;
+    }
+    if (!loaded) return;
+
+    var f = filterValues();
+    var today = todayText();
+    renderStrip(f);
+    var shown = sortGames(games.filter(function (g) { return matches(g, f); }), today);
+    $('count').textContent = (f.status || '전체') + ' 경기 ' + shown.length + '건';
+
+    if (f.from && f.to && f.from > f.to) {
+      box.appendChild(empty('시간 조건을 확인해 주세요', '\'부터\' 시각이 \'까지\' 시각보다 늦습니다.'));
+      return;
+    }
+    if (!shown.length) {
+      box.appendChild(games.length
+        ? empty('조건에 맞는 경기가 없습니다', '조건을 바꾸거나 지워 보세요.')
+        : empty('아직 경기가 없습니다', '입력 화면에서 첫 경기를 저장해 보세요.'));
+      return;
+    }
+
+    var list = el('ul', 'games');
+    shown.forEach(function (g, index) { list.appendChild(gameCard(g, today, index === 0 && g.date >= today && g.status === '매칭중')); });
+    box.appendChild(list);
+  }
+
+  function setAdmin(code, alias) {
+    adminCode = code;
+    $('admin-who').textContent = code ? '관리자 ' + alias + ' 접속 중' : '';
+    if (!code) games.forEach(function (g) { g.mine = false; });
+    $('gate').hidden = !!code;
+    $('form').hidden = !code;
+    $('admin-bar').hidden = !code;
+    $('admin-open').hidden = !!code;
+    undoChange = null;
+    showFlash('', false);
+    render();
+  }
+
+  function showTab(name) {
+    var isList = name === 'list';
+    $('view-list').hidden = !isList;
+    $('view-add').hidden = isList;
+    $('tab-list').setAttribute('aria-selected', String(isList));
+    $('tab-add').setAttribute('aria-selected', String(!isList));
+  }
+
+  function clearFilters(status) {
+    $('f-date').value = '';
+    $('f-region').value = '';
+    $('f-from').value = '';
+    $('f-to').value = '';
+    var target = document.querySelector('input[name="f-status"][value="' + status + '"]');
+    if (target) target.checked = true;
+  }
+
+  function readForm() {
+    var data = new FormData($('form'));
+    var game = {};
+    ['date', 'start', 'end', 'region', 'place', 'level', 'age', 'players', 'sport', 'format', 'fee', 'share', 'comment'].forEach(function (key) {
+      game[key] = String(data.get(key) || '').trim();
+    });
+    game.status = '매칭중';
+    game.fee = game.fee.replace(/\D/g, '');
+    return game;
+  }
+
+  function placeKey(place) {
+    return String(place).replace(/\s+/g, '').toLowerCase();
+  }
+
+  function placeConflict(g) {
+    if (!g.place || !g.region) return '';
+    var key = placeKey(g.place);
+    var other = games.filter(function (item) {
+      return item.region && item.region !== g.region && placeKey(item.place) === key;
+    })[0];
+    return other
+      ? '\'' + other.place + '\'은(는) 이미 ' + other.region + ' 구장으로 저장되어 있습니다. 지역을 ' + other.region + '(으)로 고르거나, 다른 구장이면 이름을 구분해 적어 주세요.'
+      : '';
+  }
+
+  // 고른 지역에 이미 저장된 구장을 장소 칸의 추천 목록으로 보여 줍니다.
+  function updatePlaceList() {
+    var region = $('region').value;
+    var seen = {};
+    var list = $('place-list');
+    list.textContent = '';
+    games.forEach(function (g) {
+      if (!g.place || seen[g.place] || (region && g.region !== region)) return;
+      seen[g.place] = true;
+      var option = document.createElement('option');
+      option.value = g.place;
+      list.appendChild(option);
+    });
+  }
+
+  function fillRegions(select) {
+    REGION_GROUPS.forEach(function (group) {
+      var box = document.createElement('optgroup');
+      box.label = group[0];
+      group[1].forEach(function (name) {
+        var option = el('option', '', name);
+        option.value = name;
+        box.appendChild(option);
+      });
+      select.appendChild(box);
+    });
+  }
+
+  function checkForm(g) {
+    if (!g.date) return '날짜를 입력해 주세요.';
+    if (!g.start) return '시작시각을 입력해 주세요.';
+    if (!g.end) return '끝시각을 입력해 주세요.';
+    if (g.end <= g.start) return '끝시각은 시작시각보다 늦어야 합니다.';
+    if (/0\d{1,2}[-.\s]?\d{3,4}[-.\s]?\d{4}/.test(g.place)) return '장소에 전화번호는 넣을 수 없습니다. 구장 이름만 입력해 주세요.';
+    if ([g.format, g.share, g.comment].some(function (text) { return /0\d{1,2}[-.\s]?\d{3,4}[-.\s]?\d{4}/.test(text); })) {
+      return '전화번호는 넣을 수 없습니다. 연락은 댓글과 채팅으로 받아 주세요.';
+    }
+    return placeConflict(g);
+  }
+
+  function showFormError(message) {
+    $('form-error').textContent = message;
+    $('form-error').hidden = !message;
+  }
+
+  $('form').addEventListener('submit', function (event) {
+    event.preventDefault();
+    var game = readForm();
+    var problem = checkForm(game);
+    showFormError(problem);
+    if (problem) return;
+
+    $('save').disabled = true;
+    $('save').textContent = '올리는 중';
+    call('addGame', Object.assign({ adminCode: adminCode }, game)).then(function (rows) {
+      games = rows;
+      loaded = true;
+      newKey = keyOf(game);
+      $('form').reset();
+      showFlash('', false);
+      updatePlaceList();
+      clearFilters(game.status);
+      showTab('list');
+      render();
+      $('count').textContent = '저장했습니다. ' + $('count').textContent;
+      var added = document.querySelector('.game.new');
+      if (added) added.scrollIntoView({ block: 'center' });
+    }).catch(function (error) {
+      showFormError((error && error.message) || '저장하지 못했습니다. 다시 시도해 주세요.');
+    }).then(function () {
+      $('save').disabled = false;
+      $('save').textContent = '경기 올리기';
+    });
+  });
+
+  ['f-date', 'f-region', 'f-from', 'f-to'].forEach(function (id) { $(id).addEventListener('input', render); });
+  document.querySelectorAll('input[name="f-status"]').forEach(function (input) {
+    input.addEventListener('change', render);
+  });
+  $('gate').addEventListener('submit', function (event) {
+    event.preventDefault();
+    var code = $('admin-code').value.trim();
+    $('gate-error').hidden = true;
+    if (!code) {
+      $('gate-error').textContent = '관리자 코드를 입력해 주세요.';
+      $('gate-error').hidden = false;
+      return;
+    }
+    $('gate-submit').disabled = true;
+    call('verifyAdmin', code).then(function (result) {
+      $('admin-code').value = '';
+      games = result.games;
+      loaded = true;
+      updatePlaceList();
+      setAdmin(code, result.alias);
+    }).catch(function (error) {
+      $('gate-error').textContent = (error && error.message) || '코드를 확인하지 못했습니다. 다시 시도해 주세요.';
+      $('gate-error').hidden = false;
+    }).then(function () {
+      $('gate-submit').disabled = false;
+    });
+  });
+  $('admin-open').addEventListener('click', function () {
+    showTab('add');
+    $('admin-code').focus();
+  });
+  $('admin-end').addEventListener('click', function () {
+    $('form').reset();
+    showFormError('');
+    setAdmin('', '');
+  });
+  $('undo').addEventListener('click', function () {
+    if (!undoChange) return;
+    var target = undoChange;
+    setStatusButtonsDisabled(true);
+    call('setGameStatus', Object.assign({ adminCode: adminCode }, target)).then(function (rows) {
+      games = rows;
+      undoChange = null;
+      render();
+      showFlash('되돌렸습니다.', false);
+    }).catch(function (error) {
+      showFlash((error && error.message) || '되돌리지 못했습니다. 다시 시도해 주세요.', true);
+    }).then(function () {
+      setStatusButtonsDisabled(false);
+    });
+  });
+  $('clear').addEventListener('click', function () { clearFilters(''); render(); });
+  $('tab-list').addEventListener('click', function () { showTab('list'); });
+  $('tab-add').addEventListener('click', function () { showTab('add'); });
+
+  $('fee').addEventListener('input', function () {
+    var digits = this.value.replace(/\D/g, '').replace(/^0+/, '').slice(0, 9);
+    this.value = digits ? Number(digits).toLocaleString('ko-KR') : '';
+  });
+
+  fillRegions($('f-region'));
+  fillRegions($('region'));
+  $('region').addEventListener('change', updatePlaceList);
+
+  for (var n = 0; n <= 11; n++) {
+    var option = el('option', '', n + '명');
+    option.value = String(n);
+    $('players').appendChild(option);
+  }
+
+  $('demo-notice').hidden = !!isSheetApp;
+  call('listGames').then(function (rows) {
+    if (adminCode) return;
+    games = rows;
+    loaded = true;
+    updatePlaceList();
+    render();
+  }).catch(function (error) {
+    loadError = (error && error.message) || '새로고침해 다시 시도해 주세요.';
+    render();
+  });
+})();
+</script>
+
+</body>
+</html>
